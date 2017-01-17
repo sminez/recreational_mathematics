@@ -1,102 +1,187 @@
-'''
-Sandpile dynamical system simulation
-------------------------------------
-TODO::  Have the grid grow dynamically / allocate
-        the _correct_ size of grid rather than over
-        allocating and then trimming to size.
-
-Seaborn plotting:
-> plt.figure(figsize=(15, 15))
-> sns.heatmap(s.grid, cbar=False, xticklabels=False,
->             yticklabels=False, cmap="RdYlBu")
-'''
-# %pylab inline
-# import seaborn as sns
+import numpy as np
+import seaborn as sns
 from time import time
+from subprocess import run
+from matplotlib import animation
+from matplotlib import pyplot as plt
 
 
 class SandHeap:
     '''Control class for managaing sandpile topples'''
     patterns = {
-        '+': {
-            'maxval': 4,
-            'topple_cells': [(-1, 0), (1, 0), (0, -1), (0, 1)]
-            },
-        'x': {
-            'maxval': 4,
-            'topple_cells': [(-1, 1), (-1, -1), (-1, 1), (-1, -1)]
-            },
-        'o': {
-            'maxval': 8,
-            'topple_cells': [
-                (-1, 0), (1, 0), (0, -1), (0, 1),
-                (-1, 1), (-1, -1), (1, 1), (1, -1)
-                ]
-            }
+            '+': {
+                'maxval': 4,
+                'topple_cells': [(-1, 0), (1, 0), (0, -1), (0, 1)]
+                },
+            'x': {
+                'maxval': 4,
+                'topple_cells': [(-1, 1), (-1, -1), (1, 1), (1, -1)]
+                },
+            'o': {
+                'maxval': 8,
+                'topple_cells': [
+                    (-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-1, 1), (-1, -1), (1, 1), (1, -1)
+                    ]
+                },
+            'o+': {
+                'maxval': 12,
+                'topple_cells': [
+                    (-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-1, 1), (-1, -1), (1, 1), (1, -1),
+                    (-1, 0), (1, 0), (0, -1), (0, 1)
+                    ]
+                },
+            'ox': {
+                'maxval': 12,
+                'topple_cells': [
+                    (-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-1, 1), (-1, -1), (1, 1), (1, -1),
+                    (-1, 1), (-1, -1), (1, 1), (1, -1)
+                    ]
+                }
         }
 
-    def __init__(self, sand_power=10, topple_pattern='+', init=[[1, 0, 1]]):
-        '''
-        + is the standard sandpile pattern: others may be more interesting!
-        '''
-        self.starting_sand = 2 ** sand_power
-        self.topple_pattern = topple_pattern
-        self.max_per_cell = self.patterns[topple_pattern]['maxval']
-        self.topple_cells = self.patterns[topple_pattern]['topple_cells']
-        self.init_grid(init)
+    def __init__(self, sand_power=10, topple_pattern='+'):
+        self.starting_sand = 2**sand_power
 
-    def init_grid(self, init):
-        '''
-        Construct a grid large enough for the sand specified.
-        Different configurations may be interesting to check out.
-        '''
-        # TODO:: allow for different starting distributions to be specified
-        side_length = int(self.starting_sand ** 0.5) + 1
+        if topple_pattern in self.patterns:
+            self.topple_pattern = topple_pattern
+            self.max_per_cell = self.patterns[topple_pattern]['maxval']
+            self.topple_cells = self.patterns[topple_pattern]['topple_cells']
+        else:
+            err = 'Must use one of the following topple patterns: {}'
+            raise ValueError(err.format(', '.join(self.max_heap_size.keys())))
+
+        self.init_grid()
+
+    def init_grid(self):
+        side_length = int(self.starting_sand ** 0.5)
+        if self.topple_pattern in ['x', '+']:
+            side_length = int(side_length * 1.5)
+        else:
+            side_length = int(side_length * 0.6)
+
+        self.grid = np.zeros((side_length, side_length), np.int64)
         centre = int(side_length / 2)
-        grid = [[0 for j in range(side_length)] for k in range(side_length)]
-        grid[centre][centre] = self.starting_sand
-        self.grid = grid
+        self.grid[centre][centre] = self.starting_sand
+        print("Grid initialised:\nside-length {}\ninitial sand {}".format(
+            side_length, self.starting_sand
+            )
+        )
 
-    def topple(self):
-        '''
-        Topple the sand in the grid until we reach a steady state
-        '''
+    def topple(self, verbose=False):
+        '''Topple the sand in the grid until we reach a steady state'''
         start = time()
-        while max([max(r) for r in self.grid]) >= self.max_per_cell:
+        passes = 0
+
+        while np.max(self.grid) >= self.max_per_cell:
             for rowix, row in enumerate(self.grid):
-                for cellix, cell in enumerate(row):
-                    if cell >= self.max_per_cell:
-                        self.topple_cell(rowix, cellix)
-        print(time() - start)
+                if np.max(row) >= self.max_per_cell:
+                    for cellix, cell in enumerate(row):
+                        if cell >= self.max_per_cell:
+                            self.topple_cell(rowix, cellix)
+            print(".", end="")
+            passes += 1
+
+        if verbose:
+            t = time() - start
+            print("\n{} passes required".format(passes))
+            print("{}s to reach stable state".format(t))
         self.trim_grid()
-        self.print_grid()
+
+    def ntopple(self, n, verbose=False, trim=True):
+        '''
+        Topple the sand in the grid for n iterations or
+        until we reach a steady state
+        '''
+        for _ in range(n):
+            for rowix, row in enumerate(self.grid):
+                if np.max(row) >= self.max_per_cell:
+                    for cellix, cell in enumerate(row):
+                        if cell >= self.max_per_cell:
+                            self.topple_cell(rowix, cellix)
+            print(".", end="")
+            # Break if we're at steady state
+            if np.max(self.grid) < self.max_per_cell:
+                break
+
+        if trim:
+            return self.trim_grid(copy=True)
+        else:
+            return self.grid
 
     def topple_cell(self, row, col):
-        '''
-        Distribute sand to neighbouring cells according to the pattern
-        specified at initialisation.
-        '''
-        while self.grid[row][col] >= self.max_per_cell:
-            self.grid[row][col] -= self.max_per_cell
-            for trow, tcol in self.topple_cells:
-                self.grid[row + trow][col + tcol] += 1
+        '''Distribute sand to neighbouring cells'''
+        n, rem = divmod(self.grid[row][col], self.max_per_cell)
+        self.grid[row][col] = rem
+        for trow, tcol in self.topple_cells:
+            self.grid[row + trow][col + tcol] += n
 
-    def trim_grid(self):
-        '''
-        Remove 0 filled edge rows/columns for a nicer visualisation
-        '''
-        # Trim empty rows
-        self.grid = [r for r in self.grid if sum(r) > 0]
+    def trim_grid(self, copy=False):
+        grid = np.copy(self.grid) if copy else self.grid
+
+        # Trim empty
+        grid = [r for r in grid if sum(r) > 0]
         # Trim empty columns
-        w1 = len(self.grid[0])
-        trans = [[r[n] for r in self.grid] for n in range(w1)]
+        w1 = len(grid[0])
+        trans = [[r[n] for r in grid] for n in range(w1)]
         trans = [r for r in trans if sum(r) > 0]
         w2 = len(trans[0])
-        self.grid = [[r[n] for r in trans] for n in range(w2)]
+        grid = [[r[n] for r in trans] for n in range(w2)]
+
+        if copy:
+            return grid
+        else:
+            self.grid = grid
 
     def print_grid(self):
-        '''
-        Pretty print the grid after a run
-        '''
+        print(self.starting_sand)
         for row in self.grid:
-            print(''.join([str(cell) for cell in row]))
+            line = [str(cell) for cell in row]
+            print(''.join(line))
+
+
+def animate(n=50, k=10, step=1, pat='+', ftype='gif',
+            fps=60, trim=True, cmap="RdYlBu"):
+    '''Plot the first n steps of pattern k'''
+    fig = plt.figure()
+    s = SandHeap(k, pat)
+    g = s.ntopple(step, verbose=True, trim=trim)
+    ax = sns.heatmap(
+            g, cbar=False, xticklabels=False,
+            yticklabels=False, cmap=cmap
+        )
+
+    def init():
+        ax = sns.heatmap(
+                g, cbar=False, xticklabels=False,
+                yticklabels=False, cmap=cmap
+            )
+        return ax,
+
+    def animate(i, ax, fig):
+        ax.cla()
+        g = s.ntopple(step, True, trim=trim)
+        ax = sns.heatmap(
+                g, cbar=False, xticklabels=False,
+                yticklabels=False, cmap=cmap, ax=ax
+            )
+        return ax,
+
+    start = time()
+    anim = animation.FuncAnimation(
+            fig, animate, init_func=init, frames=n,
+            fargs=(ax, fig), repeat_delay=50
+        )
+
+    if ftype == "mp4":
+        fname = "2_{}_{}.mp4".format(k, pat)
+        anim.save(fname, writer="ffmpeg", fps=fps, bitrate=2000)
+    elif ftype == "gif":
+        fname = "2_{}_{}.gif".format(k, pat)
+        anim.save(fname, writer="imagemagick", fps=fps, dpi=100)
+        # Trim border
+        run(["convert", fname, "-fuzz", "1%", "-trim", "+repage", fname])
+    plt.show()
+    print(time() - start)
