@@ -56,6 +56,12 @@ var neighbourOffsets = map[string][]gridRef{
 		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
 	},
+	"o+++": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{0, 3}, {0, -3}, {3, 0}, {-3, 0},
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+	},
 	// "fat" version of the above {not as nice}
 	"o-+": []gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
@@ -82,9 +88,14 @@ func initialiseGrid(sandPower int, pattern, startOnPattern string) *grid {
 	if pattern == "x" {
 		sideLength = int(float64(sideLength) * 1.5)
 	}
+	if pattern == "o+++" {
+		sideLength = int(float64(sideLength) * 1.5)
+	}
+
 	if sideLength%2 == 0 {
 		sideLength += 1
 	}
+
 	centre := int(sideLength / 2)
 
 	cells := make([][]int, sideLength)
