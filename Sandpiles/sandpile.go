@@ -24,12 +24,19 @@ type grid struct {
 
 // Neighbouring cell offsets for toppling
 var neighbourOffsets = map[string][]gridRef{
+	// Simple Symmetric
 	"+": []gridRef{{0, 1}, {0, -1}, {1, 0}, {-1, 0}},
 	"x": []gridRef{{1, 1}, {1, -1}, {-1, 1}, {-1, -1}},
 	"o": []gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
 	},
+	// asymmetrical {should only be used for seeding}
+	"\\": []gridRef{{1, -1}, {-1, 1}},
+	"/":  []gridRef{{1, 1}, {-1, -1}},
+	"|":  []gridRef{{1, 0}, {-1, 0}},
+	"-":  []gridRef{{0, 1}, {0, -1}},
+	// compound
 	"o+": []gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
@@ -38,6 +45,22 @@ var neighbourOffsets = map[string][]gridRef{
 	"ox": []gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+	},
+	"++": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+	},
+	"o++": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+	},
+	// "fat" version of the above {not as nice}
+	"o-+": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
 	},
 }
@@ -53,9 +76,12 @@ func arrayToString(a []int, delim string, newline bool) string {
 }
 
 // Create a new grid and start the origin cell toppling
-func initialiseGrid(sandPower int, pattern string) *grid {
+func initialiseGrid(sandPower int, pattern, startOnPattern string) *grid {
 	sand := int(math.Pow(2.0, float64(sandPower)))
 	sideLength := int(math.Sqrt(float64(sand))) + 1
+	if pattern == "x" {
+		sideLength = int(float64(sideLength) * 1.5)
+	}
 	if sideLength%2 == 0 {
 		sideLength += 1
 	}
@@ -65,7 +91,14 @@ func initialiseGrid(sandPower int, pattern string) *grid {
 	for i := 0; int(i) < sideLength; i++ {
 		cells[i] = make([]int, sideLength)
 	}
-	cells[centre][centre] = sand
+	if startOnPattern != "." {
+		for _, o := range neighbourOffsets[startOnPattern] {
+			perCell := len(neighbourOffsets[startOnPattern])
+			cells[centre+o.x][centre+o.y] = sand / perCell
+		}
+	} else {
+		cells[centre][centre] = sand
+	}
 
 	g := grid{
 		startingSand:    sand,
@@ -80,44 +113,44 @@ func initialiseGrid(sandPower int, pattern string) *grid {
 
 // Topple each cell until everything stabilises
 func (g *grid) topple() {
-	for g.max() >= g.maxBeforeTopple {
+	passes := 0
+	for {
+		toppled := false
 		for i, row := range g.cells {
 			for j, col := range row {
 				if col >= g.maxBeforeTopple {
-					g.toppleCell(int(i), int(j))
+					sand := g.cells[i][j]
+					remaining := sand % g.maxBeforeTopple
+					toppleSand := (sand - remaining) / g.maxBeforeTopple
+					g.cells[i][j] = remaining
+					for _, o := range g.offsets {
+						g.cells[i+o.x][j+o.y] += toppleSand
+					}
+					toppled = true
 				}
 			}
 		}
-	}
-}
-
-// Send sand to neighbouring cells
-func (g *grid) toppleCell(i, j int) {
-	sand := g.cells[i][j]
-	remaining := sand % g.maxBeforeTopple
-	toppleSand := (sand - remaining) / g.maxBeforeTopple
-	g.cells[i][j] = remaining
-	for _, o := range g.offsets {
-		g.cells[i+o.x][j+o.y] += toppleSand
-	}
-}
-
-// Find the max value of in the grid
-func (g *grid) max() int {
-	m := int(0)
-	for _, row := range g.cells {
-		for _, col := range row {
-			if col > m {
-				m = col
-			}
+		passes += 1
+		if passes%10 == 0 {
+			fmt.Print(".")
+		}
+		if toppled == false {
+			// We've reached steady state
+			break
 		}
 	}
-	return m
+	fmt.Println()
+	fmt.Printf("%v passes to complete\n", passes)
 }
 
 // Print the grid
-func (g *grid) visualise(sandPower string, print bool) {
-	s := []string{"2_", sandPower, "_", g.topplePattern, ".csv"}
+func (g *grid) visualise(sandPower, seed string, print bool) {
+	var s []string
+	if seed == "." {
+		s = []string{"csv/2_", sandPower, "_", g.topplePattern, ".csv"}
+	} else {
+		s = []string{"csv/2_", sandPower, "_", g.topplePattern, "_", seed, ".csv"}
+	}
 	fname := strings.Join(s, "")
 	f, err := os.Create(fname)
 	if err != nil {
@@ -146,12 +179,12 @@ func main() {
 		os.Exit(-1)
 	}
 	pattern := args[1]
-	sandHeap := initialiseGrid(int(sandPower), pattern)
+	sandHeap := initialiseGrid(int(sandPower), pattern, args[2])
 	fmt.Printf("Starting sand: %v\nPattern: %v\nSide length: %v\n",
 		sandHeap.startingSand, sandHeap.topplePattern, len(sandHeap.cells))
 	start := time.Now()
 	sandHeap.topple()
 	end := time.Since(start)
-	sandHeap.visualise(args[0], false)
+	sandHeap.visualise(args[0], args[2], false)
 	fmt.Println(end)
 }

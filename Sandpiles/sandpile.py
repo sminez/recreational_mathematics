@@ -24,6 +24,13 @@ class SandHeap:
                     (-1, 1), (-1, -1), (1, 1), (1, -1)
                     ]
                 },
+            '++': {
+                'maxval': 8,
+                'topple_cells': [
+                    (-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-2, 0), (2, 0), (0, -2), (0, 2),
+                    ]
+                },
             'o+': {
                 'maxval': 12,
                 'topple_cells': [
@@ -39,11 +46,28 @@ class SandHeap:
                     (-1, 1), (-1, -1), (1, 1), (1, -1),
                     (-1, 1), (-1, -1), (1, 1), (1, -1)
                     ]
+                },
+            'o++': {
+                'maxval': 12,
+                'topple_cells': [
+                    (-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-1, 1), (-1, -1), (1, 1), (1, -1),
+                    (-2, 0), (2, 0), (0, -2), (0, 2)
+                    ]
+                },
+            'o-+': {
+                'maxval': 16,
+                'topple_cells': [
+                    (-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-1, 0), (1, 0), (0, -1), (0, 1),
+                    (-1, 1), (-1, -1), (1, 1), (1, -1),
+                    (-2, 0), (2, 0), (0, -2), (0, 2)
+                    ]
                 }
         }
 
     def __init__(self, sand_power=10, topple_pattern='+'):
-        self.starting_sand = 2**sand_power
+        self.starting_sand = 2 ** sand_power
 
         if topple_pattern in self.patterns:
             self.topple_pattern = topple_pattern
@@ -51,16 +75,17 @@ class SandHeap:
             self.topple_cells = self.patterns[topple_pattern]['topple_cells']
         else:
             err = 'Must use one of the following topple patterns: {}'
-            raise ValueError(err.format(', '.join(self.max_heap_size.keys())))
+            raise ValueError(err.format(', '.join(self.patterns.keys())))
 
         self.init_grid()
 
     def init_grid(self):
         side_length = int(self.starting_sand ** 0.5)
-        if self.topple_pattern in ['x', '+']:
+        if self.topple_pattern in ['x', '+', '++']:
             side_length = int(side_length * 1.5)
-        else:
-            side_length = int(side_length * 0.6)
+        if side_length < 10:
+            # Lower order patterns end up with too small a side_length
+            side_length = 10
 
         self.grid = np.zeros((side_length, side_length), np.int64)
         centre = int(side_length / 2)
