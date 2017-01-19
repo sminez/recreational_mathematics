@@ -69,6 +69,14 @@ var neighbourOffsets = map[string][]gridRef{
 		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
 	},
+	"+o": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{-1, -2}, {-1, 2}, {1, -2}, {1, 2},
+		{-2, -1}, {-2, 1}, {2, -1}, {2, 1},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{2, 2}, {2, -2}, {-2, 2}, {-2, -2},
+	},
 }
 
 // Join an array of ints as a deliminated string
@@ -85,11 +93,13 @@ func arrayToString(a []int, delim string, newline bool) string {
 func initialiseGrid(sandPower int, pattern, startOnPattern string) *grid {
 	sand := int(math.Pow(2.0, float64(sandPower)))
 	sideLength := int(math.Sqrt(float64(sand))) + 1
-	if pattern == "x" {
-		sideLength = int(float64(sideLength) * 1.5)
-	}
-	if pattern == "o+++" {
-		sideLength = int(float64(sideLength) * 1.5)
+
+	// Some patterns spill over the default grid size
+	largerPatterns := []string{"x", "o+++", "+o"}
+	for _, p := range largerPatterns {
+		if pattern == p {
+			sideLength = int(float64(sideLength) * 1.5)
+		}
 	}
 
 	if sideLength%2 == 0 {
