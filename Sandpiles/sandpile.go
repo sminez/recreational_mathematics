@@ -62,7 +62,6 @@ var neighbourOffsets = map[string][]gridRef{
 		{0, 3}, {0, -3}, {3, 0}, {-3, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
 	},
-	// "fat" version of the above {not as nice}
 	"o-+": []gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
@@ -76,6 +75,22 @@ var neighbourOffsets = map[string][]gridRef{
 		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 		{2, 2}, {2, -2}, {-2, 2}, {-2, -2},
+	},
+	"xo": []gridRef{
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+		{-1, -2}, {-1, 2}, {1, -2}, {1, 2},
+		{-2, -1}, {-2, 1}, {2, -1}, {2, 1},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{2, 2}, {2, -2}, {-2, 2}, {-2, -2},
+	},
+	"+x": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{2, 2}, {2, -2}, {-2, 2}, {-2, -2},
+	},
+	"x+": []gridRef{
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 	},
 	"::": []gridRef{
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
@@ -110,7 +125,7 @@ func arrayToString(a []int, delim string, newline bool) string {
 // Create a new grid and start the origin cell toppling
 func initialiseGrid(sandPower int, pattern, startOnPattern string) *grid {
 	sand := int(math.Pow(2.0, float64(sandPower)))
-	sideLength := int(math.Sqrt(float64(sand))) + 1
+	sideLength := int(math.Sqrt(float64(sand)) * 0.7)
 
 	// Some patterns spill over the default grid size
 	largerPatterns := []string{"x", "o+++", "+o"}

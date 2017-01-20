@@ -63,10 +63,20 @@ class SandHeap:
                     (-1, 1), (-1, -1), (1, 1), (1, -1),
                     (-2, 0), (2, 0), (0, -2), (0, 2)
                     ]
-                }
+                },
+
+            "Y": {
+                'maxval': 16,
+                'topple_cells': [
+                    (0, 1), (0, -1), (1, 0), (-1, 0),
+                    (0, 2), (0, -2), (2, 0), (-2, 0),
+                    (2, 1), (2, -1), (-2, 1), (-2, -1),
+                    (1, 2), (1, -2), (-1, 2), (-1, -2)
+                    ]
+            }
         }
 
-    def __init__(self, sand_power=10, topple_pattern='+'):
+    def __init__(self, sand_power=10, topple_pattern='+', for_animation=False):
         self.starting_sand = 2 ** sand_power
 
         if topple_pattern in self.patterns:
@@ -77,19 +87,26 @@ class SandHeap:
             err = 'Must use one of the following topple patterns: {}'
             raise ValueError(err.format(', '.join(self.patterns.keys())))
 
-        self.init_grid()
+        self.init_grid(for_animation)
+        self.for_animation = for_animation
 
-    def init_grid(self):
+    def init_grid(self, for_animation=False):
         side_length = int(self.starting_sand ** 0.5)
-        if self.topple_pattern in ['x', '+', '++']:
-            side_length = int(side_length * 1.5)
+        if side_length % 2 == 0:
+            side_length += 1
+
         if side_length < 10:
             # Lower order patterns end up with too small a side_length
             side_length = 10
 
         self.grid = np.zeros((side_length, side_length), np.int64)
         centre = int(side_length / 2)
-        self.grid[centre][centre] = self.starting_sand
+        self.side_length = side_length
+        self.centre = centre
+
+        if not for_animation:
+            self.grid[centre][centre] = self.starting_sand
+
         print("Grid initialised:\nside-length {}\ninitial sand {}".format(
             side_length, self.starting_sand
             )
@@ -113,35 +130,22 @@ class SandHeap:
             t = time() - start
             print("\n{} passes required".format(passes))
             print("{}s to reach stable state".format(t))
-        self.trim_grid()
 
-    def ntopple(self, n, verbose=False, trim=True):
-        '''
-        Topple the sand in the grid for n iterations or
-        until we reach a steady state
-        '''
-        for _ in range(n):
-            for rowix, row in enumerate(self.grid):
-                if np.max(row) >= self.max_per_cell:
-                    for cellix, cell in enumerate(row):
-                        if cell >= self.max_per_cell:
-                            self.topple_cell(rowix, cellix)
-            print(".", end="")
-            # Break if we're at steady state
-            if np.max(self.grid) < self.max_per_cell:
-                break
-
-        if trim:
-            return self.trim_grid(copy=True)
-        else:
-            return self.grid
+        if not self.for_animation:
+            self.trim_grid()
 
     def topple_cell(self, row, col):
-        '''Distribute sand to neighbouring cells'''
+        '''
+        Distribute sand to neighbouring cells.
+        Discards sand that falls off the grid
+        '''
         n, rem = divmod(self.grid[row][col], self.max_per_cell)
         self.grid[row][col] = rem
         for trow, tcol in self.topple_cells:
-            self.grid[row + trow][col + tcol] += n
+            r, c = row + trow, col + tcol
+            if ((0 <= r < self.side_length) and
+                    (0 <= c < self.side_length)):
+                self.grid[row + trow][col + tcol] += n
 
     def trim_grid(self, copy=False):
         grid = np.copy(self.grid) if copy else self.grid
