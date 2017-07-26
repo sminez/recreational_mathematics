@@ -31,11 +31,6 @@ var neighbourOffsets = map[string][]gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
 	},
-	// asymmetrical {should only be used for seeding}
-	"\\": []gridRef{{1, -1}, {-1, 1}},
-	"/":  []gridRef{{1, 1}, {-1, -1}},
-	"|":  []gridRef{{1, 0}, {-1, 0}},
-	"-":  []gridRef{{0, 1}, {0, -1}},
 	// compound
 	"o+": []gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
@@ -88,6 +83,19 @@ var neighbourOffsets = map[string][]gridRef{
 	"o-+": []gridRef{
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
 		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+	},
+	"o-+x": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
+	},
+	"o=+": []gridRef{
+		{0, 1}, {0, -1}, {1, 0}, {-1, 0},
+		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 		{0, 2}, {0, -2}, {2, 0}, {-2, 0},
 		{1, 1}, {1, -1}, {-1, 1}, {-1, -1},
 	},
@@ -171,6 +179,7 @@ func initialiseGrid(sandPower int, pattern, startOnPattern string) *grid {
 	for _, p := range largerPatterns {
 		if pattern == p {
 			sideLength = int(float64(sideLength) * 1.5)
+			break
 		}
 	}
 	if sideLength < 10 {
